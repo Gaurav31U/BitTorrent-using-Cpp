@@ -129,7 +129,8 @@ int main(int argc, char* argv[]) {
         SHA1 sha1;
         // idx=0;
         // json info_ = recursion_decode(decoded_value["info"],idx);
-        sha1.update(decoded_value["info"].dump());
+        std::string info_json = decoded_value["info"];
+        sha1.update(info_json);
         std::string message_digest = sha1.final();
 
 
