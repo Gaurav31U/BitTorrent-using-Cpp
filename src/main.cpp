@@ -132,9 +132,23 @@ int main(int argc, char* argv[]) {
 //      Extract the info dictionary from the torrent file after parsing
 //      Bencode the contents of the info dictionary
 //      Calculate the SHA-1 hash of this bencoded dictionary
-        std::string info_dict_bencoded = encoded_value.substr(encoded_value.find("4:info"), encoded_value.rfind('e') - encoded_value.find("4:info") + 1);
+        size_t info_start = encoded_value.find("4:info") + 6; 
+        size_t info_end = info_start;
+        int depth = 1;
+
+        // Find the matching end of the info dictionary
+        while (depth > 0 && info_end < encoded_value.length()) {
+            if (encoded_value[info_end] == 'd') {
+                depth++;
+            } else if (encoded_value[info_end] == 'e') {
+                depth--;
+            }
+            info_end++;
+        }
+        std::string info_dict_bencoded = encoded_value.substr(info_start - 6, info_end - (info_start - 6));
         sha1.update(info_dict_bencoded);
         std::string message_digest = sha1.final();
+
 
 
         std::string announce_url = decoded_value["announce"];
