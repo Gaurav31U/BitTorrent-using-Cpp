@@ -12,7 +12,7 @@ json recursion_decode(const std::string& encoded_value, size_t& index) {
     if (index >= encoded_value.length()) {
         throw std::runtime_error("Unexpected end of encoded value");
     }
-
+    // d<key1><value1>...<keyN><valueN>e
     if (std::isdigit(encoded_value[index])) {
         // Decode string
         size_t colon_index = encoded_value.find(':', index);
@@ -47,7 +47,25 @@ json recursion_decode(const std::string& encoded_value, size_t& index) {
         }
         index++; // Skip 'e'
         return json(list);
-    } else {
+    } else if(encoded_value[index]== 'd'){
+        // Decode dictionary
+        index++; // Skip 'd'
+        json dict = json::object();
+        while (index < encoded_value.length() && encoded_value[index] != 'e') {
+            json key = recursion_decode(encoded_value, index);
+            if (!key.is_string()) {
+                throw std::runtime_error("Dictionary keys must be strings");
+            }
+            json value = recursion_decode(encoded_value, index);
+            dict[key.get<std::string>()] = value;
+        }
+        if (index >= encoded_value.length() || encoded_value[index] != 'e') {
+            throw std::runtime_error("Invalid dictionary encoding");
+        }
+        index++; // Skip 'e'
+        return dict;
+    
+    }else {
         throw std::runtime_error("Unhandled encoded value at index " + std::to_string(index) + ": " + encoded_value);
     }
 }
