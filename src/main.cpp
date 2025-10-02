@@ -81,6 +81,37 @@ json recursion_decode(const std::string& encoded_value, size_t& index) {
     }
 }
 
+static std::string bencode_json(const json &j) {
+    if (j.is_string()) {
+        const std::string &s = j.get_ref<const std::string&>();
+        return std::to_string(s.size()) + ":" + s;
+    } else if (j.is_number_integer() || j.is_number_unsigned() || j.is_number_float()) {
+        // Use integer encoding for numeric values
+        return std::string("i") + std::to_string(j.get<int64_t>()) + "e";
+    } else if (j.is_array()) {
+        std::string out = "l";
+        for (const auto &el : j) out += bencode_json(el);
+        out += "e";
+        return out;
+    } else if (j.is_object()) {
+        std::vector<std::string> keys;
+        for (auto it = j.begin(); it != j.end(); ++it) keys.push_back(it.key());
+        std::sort(keys.begin(), keys.end());
+        std::string out = "d";
+        for (const auto &k : keys) {
+            // encode key as bencoded string
+            out += std::to_string(k.size()) + ":" + k;
+            out += bencode_json(j.at(k));
+        }
+        out += "e";
+        return out;
+    } else if (j.is_null()) {
+        return std::string("0:"); // represent null as empty string (unlikely in torrents)
+    } else {
+        throw std::runtime_error("Unsupported JSON type for bencoding");
+    }
+}
+
 
 int main(int argc, char* argv[]) {
     // Flush after every std::cout / std::cerr
@@ -124,32 +155,13 @@ int main(int argc, char* argv[]) {
         inFile.close();
         size_t idx = 0;
         json decoded_value= recursion_decode(encoded_value, idx);
+        
         SHA1 sha1;
-
-
-        size_t info_start = encoded_value.find("4:info");
-        if (info_start == std::string::npos) {
-            throw std::runtime_error("Could not find info dictionary");
-        }
-        info_start += 6; 
-        size_t info_end = info_start;
-        int depth = 1; 
-        while (depth > 0 && info_end < encoded_value.length()) {
-            char c = encoded_value[info_end];
-            if (c == 'd') {
-                depth++;
-            } else if (c == 'e') {
-                depth--;
-            }
-            info_end++;
-        }
-
-        if (depth != 0) {
-            throw std::runtime_error("Malformed info dictionary");
-        }
-        std::string info_section = encoded_value.substr(info_start, info_end - info_start);
-        sha1.update(info_section);
+        json info_obj = decoded_value["info"];
+        std::string info_bencoded = bencode_json(info_obj);
+        sha1.update(info_bencoded);
         std::string binary_hash = sha1.final();
+
 
         std::string announce_url = decoded_value["announce"];
         std::cout << "Tracker URL: " << announce_url << std::endl;
