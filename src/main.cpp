@@ -147,7 +147,8 @@ int main(int argc, char* argv[]) {
         if (depth != 0) {
             throw std::runtime_error("Malformed info dictionary");
         }
-        std::string info_section = encoded_value.substr(info_start - 1, info_end - (info_start - 1));
+        std::string info_section = encoded_value.substr(info_start - 1,info_end - (info_start - 1));
+        std::string info_section = encoded_value.substr(info_start, info_end - info_start);
         sha1.update(info_section);
         std::string binary_hash = sha1.final();
 
