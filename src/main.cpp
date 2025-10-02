@@ -3,6 +3,7 @@
 #include <vector>
 #include <cctype>
 #include <cstdlib>
+#include <fstream>
 
 #include "lib/nlohmann/json.hpp"
 
@@ -25,7 +26,10 @@ json recursion_decode(const std::string& encoded_value, size_t& index) {
         std::string str = encoded_value.substr(index, number);
         index += number;
         return json(str);
-    } else if (encoded_value[index] == 'i') {
+    } else 
+    
+    
+    if (encoded_value[index] == 'i') {
         // Decode integer
         size_t end_index = encoded_value.find('e', index);
         if (end_index == std::string::npos) {
@@ -35,7 +39,10 @@ json recursion_decode(const std::string& encoded_value, size_t& index) {
         int64_t number = std::atoll(number_string.c_str());
         index = end_index + 1;
         return json(number);
-    } else if (encoded_value[index] == 'l') {
+    }else 
+    
+    
+    if (encoded_value[index] == 'l') {
         // Decode list
         index++; // Skip 'l'
         std::vector<json> list;
@@ -47,7 +54,10 @@ json recursion_decode(const std::string& encoded_value, size_t& index) {
         }
         index++; // Skip 'e'
         return json(list);
-    } else if(encoded_value[index]== 'd'){
+    } else 
+    
+    
+    if(encoded_value[index]== 'd'){
         // Decode dictionary
         index++; // Skip 'd'
         json dict = json::object();
@@ -96,7 +106,30 @@ int main(int argc, char* argv[]) {
         size_t idx = 0;
         json decoded_value = recursion_decode(encoded_value,idx);
         std::cout << decoded_value.dump() << std::endl;
-    } else {
+    } else 
+    
+    if(command == "info"){
+        if(argc < 3) {
+            std::cerr << "Usage: " << argv[0] << " info file.torent" << std::endl;
+            return 1;
+        }
+        std::string file_name = argv[2];
+        std::ifstream inFile(file_name, std::ios::in | std::ios::binary);
+        if (!inFile) {
+            std::cerr << "Could not open the file: " << file_name << std::endl;
+            return 1;
+        }
+        std::string encoded_value((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
+        inFile.close();
+        // Tracker URL: http://bittorrent-test-tracker.codecrafters.io/announce
+        // Length: 92063/
+        size_t idx = 0;
+        json decoded_value= recursion_decode(encoded_value, idx);
+        std::cout << "Tracker URL: " << decoded_value["announce"] << std::endl;
+        std::cout << "Length: " << decoded_value["info"]["length"] << std::endl;
+    }
+    
+    else {
         std::cerr << "unknown command: " << command << std::endl;
         return 1;
     }
