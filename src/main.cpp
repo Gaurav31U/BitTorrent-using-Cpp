@@ -159,20 +159,12 @@ int main(int argc, char* argv[]) {
         sha1.update(info_section);
         std::string binary_hash = sha1.final();
 
-        // Convert binary hash to hexadecimal
-        std::string hex_hash;
-        for (unsigned char byte : binary_hash) {
-            char hex[3];
-            snprintf(hex, sizeof(hex), "%02x", byte);
-            hex_hash += hex;
-        }
-
 
 
         std::string announce_url = decoded_value["announce"];
         std::cout << "Tracker URL: " << announce_url << std::endl;
         std::cout << "Length: " << decoded_value["info"]["length"] << std::endl;
-        std::cout << "Info Hash: " << hex_hash << std::endl;
+        std::cout << "Info Hash: " << binary_hash << std::endl;
     }
     
     else {
