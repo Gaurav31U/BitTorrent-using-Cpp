@@ -6,42 +6,10 @@
 #include <fstream>
 #include "sha1.h"
 #include "recursion_decode.h"
-
+#include "bencode_json.h"
 #include "lib/nlohmann/json.hpp"
 
 using json = nlohmann::json;
-
-static std::string bencode_json(const json &j) {
-    if (j.is_string()) {
-        const std::string &s = j.get_ref<const std::string&>();
-        return std::to_string(s.size()) + ":" + s;
-    } else if (j.is_number_integer() || j.is_number_unsigned() || j.is_number_float()) {
-        // Use integer encoding for numeric values
-        return std::string("i") + std::to_string(j.get<int64_t>()) + "e";
-    } else if (j.is_array()) {
-        std::string out = "l";
-        for (const auto &el : j) out += bencode_json(el);
-        out += "e";
-        return out;
-    } else if (j.is_object()) {
-        std::vector<std::string> keys;
-        for (auto it = j.begin(); it != j.end(); ++it) keys.push_back(it.key());
-        std::sort(keys.begin(), keys.end());
-        std::string out = "d";
-        for (const auto &k : keys) {
-            // encode key as bencoded string
-            out += std::to_string(k.size()) + ":" + k;
-            out += bencode_json(j.at(k));
-        }
-        out += "e";
-        return out;
-    } else if (j.is_null()) {
-        return std::string("0:"); // represent null as empty string (unlikely in torrents)
-    } else {
-        throw std::runtime_error("Unsupported JSON type for bencoding");
-    }
-}
-
 
 int main(int argc, char* argv[]) {
     // Flush after every std::cout / std::cerr
@@ -60,17 +28,11 @@ int main(int argc, char* argv[]) {
             std::cerr << "Usage: " << argv[0] << " decode <encoded_value>" << std::endl;
             return 1;
         }
-        // You can use print statements as follows for debugging, they'll be visible when running tests.
-        std::cerr << "Logs from your program will appear here!" << std::endl;
-
-        // Uncomment this block to pass the first stage
         std::string encoded_value = argv[2];
         size_t idx = 0;
         json decoded_value = recursion_decode(encoded_value,idx);
         std::cout << decoded_value.dump() << std::endl;
-    } else 
-    
-    if(command == "info"){
+    } else if(command == "info"){
         if(argc < 3) {
             std::cerr << "Usage: " << argv[0] << " info file.torent" << std::endl;
             return 1;
@@ -97,9 +59,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Tracker URL: " << announce_url << std::endl;
         std::cout << "Length: " << decoded_value["info"]["length"] << std::endl;
         std::cout << "Info Hash: " << binary_hash << std::endl;
-    }
-    
-    else {
+    }else {
         std::cerr << "unknown command: " << command << std::endl;
         return 1;
     }
