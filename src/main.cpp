@@ -127,10 +127,13 @@ int main(int argc, char* argv[]) {
         size_t idx = 0;
         json decoded_value= recursion_decode(encoded_value, idx);
         SHA1 sha1;
-        // idx=0;
-        // json info_ = recursion_decode(decoded_value["info"],idx);
-        std::string info_json = decoded_value["info"];
-        sha1.update(info_json);
+
+//      To calculate the info hash, you'll need to:
+//      Extract the info dictionary from the torrent file after parsing
+//      Bencode the contents of the info dictionary
+//      Calculate the SHA-1 hash of this bencoded dictionary
+        std::string info_dict_bencoded = encoded_value.substr(encoded_value.find("4:info"), encoded_value.rfind('e') - encoded_value.find("4:info") + 1);
+        sha1.update(info_dict_bencoded);
         std::string message_digest = sha1.final();
 
 
