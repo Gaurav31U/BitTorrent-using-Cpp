@@ -128,26 +128,31 @@ int main(int argc, char* argv[]) {
         json decoded_value= recursion_decode(encoded_value, idx);
         SHA1 sha1;
 
-        size_t start_pos = 0;
-        size_t info_start = encoded_value.find("4:info", start_pos);
+        size_t info_start = encoded_value.find("4:info");
         if (info_start == std::string::npos) {
             throw std::runtime_error("Could not find info dictionary");
         }
-
-        // Move to the start of the dictionary content
-        info_start += 6; // Skip "4:info" prefix
+        info_start += 6; // Skip past "4:info" to the 'd' character
+        
+        // Find the end of the info dictionary
         size_t info_end = info_start;
-        int nested_level = 1;
-
-        // Find the end of the info dictionary by matching nested delimiters
-        while (nested_level > 0 && info_end < encoded_value.length()) {
+        int depth = 1;  // Start at depth 1 since we're already inside a dictionary
+        
+        while (depth > 0 && info_end < encoded_value.length()) {
             char c = encoded_value[info_end];
-            if (c == 'd') nested_level++;
-            else if (c == 'e') nested_level--;
+            if (c == 'd') {
+                depth++;
+            } else if (c == 'e') {
+                depth--;
+            }
             info_end++;
         }
 
-        // Extract the info dictionary including the 'd' prefix and 'e' suffix
+        if (depth != 0) {
+            throw std::runtime_error("Malformed info dictionary");
+        }
+
+        // Extract the complete info dictionary including the 'd' and 'e'
         std::string info_section = encoded_value.substr(info_start - 1, info_end - (info_start - 1));
         
         // Calculate SHA1 hash
