@@ -128,33 +128,46 @@ int main(int argc, char* argv[]) {
         json decoded_value= recursion_decode(encoded_value, idx);
         SHA1 sha1;
 
-//      To calculate the info hash, you'll need to:
-//      Extract the info dictionary from the torrent file after parsing
-//      Bencode the contents of the info dictionary
-//      Calculate the SHA-1 hash of this bencoded dictionary
-        size_t info_start = encoded_value.find("4:info") + 6; 
-        size_t info_end = info_start;
-        int depth = 1;
+        size_t start_pos = 0;
+        size_t info_start = encoded_value.find("4:info", start_pos);
+        if (info_start == std::string::npos) {
+            throw std::runtime_error("Could not find info dictionary");
+        }
 
-        // Find the matching end of the info dictionary
-        while (depth > 0 && info_end < encoded_value.length()) {
-            if (encoded_value[info_end] == 'd') {
-                depth++;
-            } else if (encoded_value[info_end] == 'e') {
-                depth--;
-            }
+        // Move to the start of the dictionary content
+        info_start += 6; // Skip "4:info" prefix
+        size_t info_end = info_start;
+        int nested_level = 1;
+
+        // Find the end of the info dictionary by matching nested delimiters
+        while (nested_level > 0 && info_end < encoded_value.length()) {
+            char c = encoded_value[info_end];
+            if (c == 'd') nested_level++;
+            else if (c == 'e') nested_level--;
             info_end++;
         }
-        std::string info_dict_bencoded = encoded_value.substr(info_start - 6, info_end - (info_start - 6));
-        sha1.update(info_dict_bencoded);
-        std::string message_digest = sha1.final();
+
+        // Extract the info dictionary including the 'd' prefix and 'e' suffix
+        std::string info_section = encoded_value.substr(info_start - 1, info_end - (info_start - 1));
+        
+        // Calculate SHA1 hash
+        sha1.update(info_section);
+        std::string binary_hash = sha1.final();
+
+        // Convert binary hash to hexadecimal
+        std::string hex_hash;
+        for (unsigned char byte : binary_hash) {
+            char hex[3];
+            snprintf(hex, sizeof(hex), "%02x", byte);
+            hex_hash += hex;
+        }
 
 
 
         std::string announce_url = decoded_value["announce"];
         std::cout << "Tracker URL: " << announce_url << std::endl;
         std::cout << "Length: " << decoded_value["info"]["length"] << std::endl;
-        std::cout << "Info Hash: " << message_digest << std::endl;
+        std::cout << "Info Hash: " << hex_hash << std::endl;
     }
     
     else {
