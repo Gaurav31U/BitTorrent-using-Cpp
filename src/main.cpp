@@ -127,15 +127,16 @@ int main(int argc, char* argv[]) {
         size_t idx = 0;
         json decoded_value= recursion_decode(encoded_value, idx);
         SHA1 sha1;
-        sha1.Reset();
-        sha1 << decoded_value["info"];
-        unsigned message_digest[5];
+        // idx=0;
+        // json info_ = recursion_decode(decoded_value["info"],idx);
+        sha1.update(decoded_value["info"].dump());
+        std::string message_digest = sha1.final();
 
 
         std::string announce_url = decoded_value["announce"];
         std::cout << "Tracker URL: " << announce_url << std::endl;
         std::cout << "Length: " << decoded_value["info"]["length"] << std::endl;
-        std::cout << "Info Hash: " << sha1.Result(message_digest) << std::endl;
+        std::cout << "Info Hash: " << message_digest << std::endl;
     }
     
     else {
