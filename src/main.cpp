@@ -121,12 +121,11 @@ int main(int argc, char* argv[]) {
         }
         std::string encoded_value((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
         inFile.close();
-        // Tracker URL: http://bittorrent-test-tracker.codecrafters.io/announce
+        // Tracker URL: http://bittorrent-test-tracker.codecrafters.io/announce  // without duoble quote
         // Length: 92063/
         size_t idx = 0;
         json decoded_value= recursion_decode(encoded_value, idx);
-        std::cout<< decoded_value.dump() << std::endl;
-        std::cout << "Tracker URL: " << decoded_value["announce"] << std::endl;
+        std::cout << "Tracker URL: " << decoded_value << std::endl;
         std::cout << "Length: " << decoded_value["info"]["length"] << std::endl;
     }
     
