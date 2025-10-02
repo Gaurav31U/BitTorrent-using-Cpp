@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
+#include "sha1.h"
 
 #include "lib/nlohmann/json.hpp"
 
@@ -125,10 +126,16 @@ int main(int argc, char* argv[]) {
         // Length: 92063/
         size_t idx = 0;
         json decoded_value= recursion_decode(encoded_value, idx);
+        SHA1 sha1;
+        sha1.Reset();
+        sha1 << decoded_value["info"];
+        unsigned message_digest[5];
+
+
         std::string announce_url = decoded_value["announce"];
         std::cout << "Tracker URL: " << announce_url << std::endl;
         std::cout << "Length: " << decoded_value["info"]["length"] << std::endl;
-        std::cout << "Info Hash: " << decoded_value["info"]["pieces"] << std::endl;
+        std::cout << "Info Hash: " << sha1.Result(message_digest) << std::endl;
     }
     
     else {
