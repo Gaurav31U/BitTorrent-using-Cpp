@@ -126,9 +126,9 @@ int main(int argc, char* argv[]) {
         size_t idx = 0;
         json decoded_value= recursion_decode(encoded_value, idx);
         std::string announce_url = decoded_value["announce"];
-        // announce_url = announce_url.substr(1, announce_url.length() - 2); // Remove the double quotes
         std::cout << "Tracker URL: " << announce_url << std::endl;
         std::cout << "Length: " << decoded_value["info"]["length"] << std::endl;
+        std::cout << "Info Hash: " << decoded_value["info"]["pieces"] << std::endl;
     }
     
     else {
