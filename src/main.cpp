@@ -28,7 +28,39 @@ json decode_bencoded_value(const std::string& encoded_value) {
         std::string number_string = encoded_value.substr(1, length - 2);
         int64_t number = std::atoll(number_string.c_str());
         return json(number);
-    }else {
+    }else if(encoded_value[0]=='l' && encoded_value[length - 1]=='e'){
+        std::vector<json> list;
+        size_t index = 1; // Skip 'l'
+        while (index < length - 1) { // Until 'e'
+            size_t start_index = index;
+            if (std::isdigit(encoded_value[index])) {
+                size_t colon_index = encoded_value.find(':', index);
+                if (colon_index != std::string::npos) {
+                    std::string number_string = encoded_value.substr(index, colon_index - index);
+                    int64_t number = std::atoll(number_string.c_str());
+                    std::string str = encoded_value.substr(colon_index + 1, number);
+                    list.push_back(json(str));
+                    index = colon_index + 1 + number;
+                } else {
+                    throw std::runtime_error("Invalid list item in encoded value: " + encoded_value);
+                }
+            } else if (encoded_value[index] == 'i') {
+                size_t end_index = encoded_value.find('e', index);
+                if (end_index != std::string::npos) {
+                    std::string number_string = encoded_value.substr(index + 1, end_index - index - 1);
+                    int64_t number = std::atoll(number_string.c_str());
+                    list.push_back(json(number));
+                    index = end_index + 1;
+                } else {
+                    throw std::runtime_error("Invalid integer in list: " + encoded_value);
+                }
+            } else {
+                throw std::runtime_error("Unsupported list item type in encoded value: " + encoded_value);
+            }
+        }
+        return json(list);
+    }
+    else {
         throw std::runtime_error("Unhandled encoded value: " + encoded_value);
     }
 }
