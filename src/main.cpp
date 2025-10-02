@@ -10,9 +10,17 @@ using json = nlohmann::json;
 
 json decode_bencoded_value(const std::string& encoded_value) {
     int length = encoded_value.length();
-    std::string prefix = encoded_value.substr(0,length-2);
-    int64_t number = std::atoll(prefix.c_str());
-    return json(number);
+    if (length == 0) {
+        throw std::runtime_error("Empty encoded value");
+    }
+    // Example: "i42e" -> 42
+    if (encoded_value[0] == 'i' && encoded_value[length - 1] == 'e') {
+        std::string number_string = encoded_value.substr(1, length - 2);
+        int64_t number = std::atoll(number_string.c_str());
+        return json(number);
+    }else{
+        throw std::runtime_error("Unhandled encoded value: " + encoded_value);
+    }
 }
 
 int main(int argc, char* argv[]) {
