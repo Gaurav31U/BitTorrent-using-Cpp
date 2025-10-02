@@ -125,7 +125,8 @@ int main(int argc, char* argv[]) {
         // Length: 92063/
         size_t idx = 0;
         json decoded_value= recursion_decode(encoded_value, idx);
-        std::cout << "Tracker URL: " << decoded_value << std::endl;
+        std::string announce_url = decoded_value["announce"];
+        std::cout << "Tracker URL: " << announce_url << std::endl;
         std::cout << "Length: " << decoded_value["info"]["length"] << std::endl;
     }
     
