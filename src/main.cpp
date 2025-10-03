@@ -9,6 +9,7 @@
 #include "recursion_decode.h"
 #include "bencode_json.h"
 #include "lib/nlohmann/json.hpp"
+#include <iomanip>
 
 using json = nlohmann::json;
 
@@ -89,7 +90,7 @@ int main(int argc, char* argv[]) {
         inFile.close();
         size_t idx = 0;
         json decoded_value= recursion_decode(encoded_value, idx);
-        std::string announce_url = decoded_value["announce"].get<std::string>();
+        std::string announce = decoded_value["announce"].get<std::string>();
         
         json info_obj = decoded_value["info"];
         std::string info_bencoded = bencode_json(info_obj);
@@ -97,8 +98,29 @@ int main(int argc, char* argv[]) {
         sha1.update(info_bencoded);
         std::string info_hash = sha1.final();
 
-        httplib::Client cli(announce_url);
-    
+        if (announce.rfind("http://", 0) == 0) announce = announce.substr(7);
+        else if (announce.rfind("https://", 0) == 0) announce = announce.substr(8);
+        std::string host_and_port;
+        std::string url_path = "/";
+        size_t pos = announce.find('/');
+        if (pos != std::string::npos) {
+            host_and_port = announce.substr(0, pos);
+            url_path = announce.substr(pos);
+        } else {
+            host_and_port = announce;
+        }
+
+        httplib::Client cli(host_and_port.c_str());
+
+        auto percent_encode = [](const std::string &s) {
+            std::ostringstream oss;
+            oss << std::hex << std::uppercase;
+            for (unsigned char c : s) {
+                oss << '%' << std::setw(2) << std::setfill('0') << (int)c;
+            }
+            return oss.str();
+        };
+
         // Use the Get() method with a path and a Params object
         httplib::Params params;
         params.emplace("info_hash", decoded_value["info_hash"]);
@@ -109,9 +131,8 @@ int main(int argc, char* argv[]) {
         params.emplace("left", std::to_string(decoded_value["info"]["length"].get<int>()));
         params.emplace("compact", "1");
         
-        std::string path = "/get";
         // Make the GET request with the parameters
-        auto res = cli.Get(path, params, httplib::Headers());
+        auto res = cli.Get(url_path.c_str(), params, httplib::Headers());
 
         auto print_compact_peers = [](const std::string &peers_compact) {
             std::vector<uint8_t> peers_bytes(peers_compact.begin(), peers_compact.end());
