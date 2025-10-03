@@ -103,8 +103,8 @@ int main(int argc, char* argv[]) {
         }
         std::string info_value = bencode_json(decoded_value["info"]);
         std::vector<uint8_t> bytes(info_value.begin(), info_value.end());
-        std::string announce_url = decoded_value["announce"].get<string>();
-        std::tring peer_id = "abcdefghijklmnoptrst";
+        std::string announce_url = decoded_value["announce"].get<std::string>();
+        std::string peer_id = "abcdefghijklmnoptrst";
         int64_t length = decoded_value["info"]["length"].get<int64_t>();
         std::ostringstream oss;
         unsigned char hash[SHA_DIGEST_LENGTH]; 
@@ -130,8 +130,8 @@ int main(int argc, char* argv[]) {
           return -1;
         }
         size_t begin = 0;
-        json content = decode_bencoded_value(response, begin);
-        std::string peers = content.at("peers").get<string>();
+        json content = recursion_decode(response, begin);
+        std::string peers = content["peers"].get<std::string>();
         for(size_t i = 0; i < peers.size(); i+=6) {
           unsigned char ip1 = static_cast<unsigned char>(peers[i]);
           unsigned char ip2 = static_cast<unsigned char>(peers[i + 1]);
