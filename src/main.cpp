@@ -12,7 +12,6 @@
 using json = nlohmann::json;
 
 int main(int argc, char* argv[]) {
-    // Flush after every std::cout / std::cerr
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
 
@@ -59,6 +58,8 @@ int main(int argc, char* argv[]) {
         std::cout << "Tracker URL: " << announce_url << std::endl;
         std::cout << "Length: " << decoded_value["info"]["length"] << std::endl;
         std::cout << "Info Hash: " << binary_hash << std::endl;
+        std::cout << "Piece Length: " << decoded_value["info"]["piece length"] << std::endl;
+        std::cout << "Piece Hashes: " << decoded_value["info"]["piece Hashes"] << std::endl;
     }else {
         std::cerr << "unknown command: " << command << std::endl;
         return 1;
