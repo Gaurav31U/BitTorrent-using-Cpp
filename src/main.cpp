@@ -110,17 +110,22 @@ int main(int argc, char* argv[]) {
         int64_t length = decoded_value["info"]["length"].get<int64_t>();
         std::ostringstream oss;
         SHA1 sha1;
-        sha1.update(info_value);
+        // sha1.update(info_value);
+        sha1.update(bytes.data(), bytes.size());
         std::string hash = sha1.final();
+        char *esc_info = curl_easy_escape(curl, reinterpret_cast<const char*>(hash.data()), static_cast<int>(SHA_DIGEST_LENGTH));
+        char *esc_peer = curl_easy_escape(curl, peer_id.c_str(), static_cast<int>(peer_id.length()));
         oss << announce_url
-            << "?info_hash=" << curl_easy_escape(curl, reinterpret_cast<const char*>(hash.data()), static_cast<int>(SHA_DIGEST_LENGTH))
-            << "&peer_id="   << curl_easy_escape(curl, peer_id.c_str(), static_cast<int>(peer_id.length()))
+            << "?info_hash=" << (esc_info ? esc_info : "")
+            << "&peer_id="   << (esc_peer ? esc_peer : "")
             << "&port="      << 6881
             << "&uploaded=" << 0
             << "&downloaded=" << 0
             << "&left=" << length
             << "&compact=" << 1;
         std::string url = oss.str();
+        if (esc_info) curl_free(esc_info);
+        if (esc_peer) curl_free(esc_peer);
         std::string response;
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
