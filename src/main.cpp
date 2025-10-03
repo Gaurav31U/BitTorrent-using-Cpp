@@ -4,17 +4,20 @@
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
-#include "httplib.h"
-#include "sha1.h"
+// #include "httplib.h"
+// #include "sha1.h"
 #include "recursion_decode.h"
 #include "bencode_json.h"
 #include "lib/nlohmann/json.hpp"
 #include <iomanip>
+#include <curl/curl.h>
+#include <openssl/sha.h>
 
 using json = nlohmann::json;
 
-size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-    ((std::string*)userp)->append((char*)contents, size * nmemb);
+size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
+    std::string *response = reinterpret_cast<std::string*>(userdata);
+    response->append(ptr, size * nmemb);
     return size * nmemb;
 }
 
@@ -90,88 +93,57 @@ int main(int argc, char* argv[]) {
         inFile.close();
         size_t idx = 0;
         json decoded_value= recursion_decode(encoded_value, idx);
-        std::string announce = decoded_value["announce"].get<std::string>();
         
-        json info_obj = decoded_value["info"];
-        std::string info_bencoded = bencode_json(info_obj);
-        SHA1 sha1;
-        sha1.update(info_bencoded);
-        std::string info_hash = sha1.final();
-
-        if (announce.rfind("http://", 0) == 0) announce = announce.substr(7);
-        else if (announce.rfind("https://", 0) == 0) announce = announce.substr(8);
-        std::string host_and_port;
-        std::string url_path = "/";
-        size_t pos = announce.find('/');
-        if (pos != std::string::npos) {
-            host_and_port = announce.substr(0, pos);
-            url_path = announce.substr(pos);
-        } else {
-            host_and_port = announce;
+        CURL *curl;
+        CURLcode result;
+        curl = curl_easy_init();
+        if(curl == NULL) {
+          cerr << "curl_easy_init() failed" << endl;
+          return -1;
         }
-
-        httplib::Client cli(host_and_port.c_str());
-
-        auto percent_encode = [](const std::string &s) {
-            std::ostringstream oss;
-            oss << std::hex << std::uppercase;
-            for (unsigned char c : s) {
-                oss << '%' << std::setw(2) << std::setfill('0') << (int)c;
-            }
-            return oss.str();
-        };
-
-        // Use the Get() method with a path and a Params object
-        httplib::Params params;
-        params.emplace("info_hash", decoded_value["info_hash"]);
-        params.emplace("peer_id", "-PC0001-123456789012");
-        params.emplace("port", "6881");
-        params.emplace("uploaded", "0");
-        params.emplace("downloaded", "0");
-        params.emplace("left", std::to_string(decoded_value["info"]["length"].get<int>()));
-        params.emplace("compact", "1");
-        
-        // Make the GET request with the parameters
-        auto res = cli.Get(url_path.c_str(), params, httplib::Headers());
-
-        auto print_compact_peers = [](const std::string &peers_compact) {
-            std::vector<uint8_t> peers_bytes(peers_compact.begin(), peers_compact.end());
-            for (size_t i = 0; i + 5 < peers_bytes.size(); i += 6) {
-                std::cout << (int)peers_bytes[i] << "."
-                          << (int)peers_bytes[i + 1] << "."
-                          << (int)peers_bytes[i + 2] << "."
-                          << (int)peers_bytes[i + 3] << ":"
-                          << ((peers_bytes[i + 4] << 8) | peers_bytes[i + 5])
-                          << "\n";
-            }
-        };
-        // Check for success
-        if (res && res->status == 200) {
-            std::string readBuffer = res->body;
-            size_t ridx = 0;
-            json response;
-            try {
-                response = recursion_decode(readBuffer, ridx);
-            } catch (...) {
-                std::cerr << "Failed to decode tracker response" << std::endl;
-                return 1;
-            }
-
-            if (response.is_object() && response.contains("peers") && response["peers"].is_string()) {
-                std::string peers_compact = response["peers"].get<std::string>();
-                print_compact_peers(peers_compact);
-            } else {
-                std::cerr << "Tracker response has no compact peers string" << std::endl;
-            }
-        } else {
-            std::cerr << "HTTP GET Request Failed!" << std::endl;
-            if (res) {
-                std::cerr << "Status code: " << res->status << std::endl;
-            }
+        std::string info_value = encode_bencode_value(decoded_value.at("info"));
+        std::vector<uint8_t> bytes(info_value.begin(), info_value.end());
+        std::string announce_url = decoded_value.at("announce").get<string>();
+        std::tring peer_id = "abcdefghijklmnoptrst";
+        int64_t length = decoded_value.at("info").at("length").get<int64_t>();
+        std::ostringstream oss;
+        unsigned char hash[SHA_DIGEST_LENGTH]; 
+        SHA1(reinterpret_cast<const unsigned char*>(bytes.data()),
+             bytes.size(),
+             hash);
+        oss << announce_url
+            << "?info_hash=" << curl_easy_escape(curl, reinterpret_cast<char*>(hash), SHA_DIGEST_LENGTH)
+            << "&peer_id="   << curl_easy_escape(curl, peer_id.c_str(), peer_id.length())
+            << "&port="      << 6881
+            << "&uploaded=" << 0
+            << "&downloaded=" << 0
+            << "&left=" << length
+            << "&compact=" << 1;
+        std::string url = oss.str();
+        std::string response;
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+        result = curl_easy_perform(curl);
+        if(result != CURLE_OK) {
+          cerr << "curl_easy_perform() failed" << endl;
+          return -1;
         }
-
-        
-
+        size_t begin = 0;
+        json content = decode_bencoded_value(response, begin);
+        std::string peers = content.at("peers").get<string>();
+        for(size_t i = 0; i < peers.size(); i+=6) {
+          unsigned char ip1 = static_cast<unsigned char>(peers[i]);
+          unsigned char ip2 = static_cast<unsigned char>(peers[i + 1]);
+          unsigned char ip3 = static_cast<unsigned char>(peers[i + 2]);
+          unsigned char ip4 = static_cast<unsigned char>(peers[i + 3]);
+    
+          uint16_t port = (static_cast<unsigned char>(peers[i + 4]) << 8) |
+                          static_cast<unsigned char>(peers[i + 5]);
+    
+          printf("%d.%d.%d.%d:%d\n", ip1, ip2, ip3, ip4, port);
+        }
+        curl_easy_cleanup(curl);
     }else {
         std::cerr << "unknown command: " << command << std::endl;
         return 1;
