@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
         int64_t length = decoded_value["info"]["length"].get<int64_t>();
         std::ostringstream oss;
         SHA1 sha1;
-        sha1.update(bytes.data(), bytes.size());
+        sha1.update(info_value, info_value.size());
         std::string hash = sha1.final();
         oss << announce_url
             << "?info_hash=" << curl_easy_escape(curl, reinterpret_cast<const char*>(hash.data()), static_cast<int>(SHA_DIGEST_LENGTH))
