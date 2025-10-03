@@ -109,10 +109,9 @@ int main(int argc, char* argv[]) {
         std::string peer_id = "abcdefghijklmnoptrst";
         int64_t length = decoded_value["info"]["length"].get<int64_t>();
         std::ostringstream oss;
-        unsigned char hash[SHA_DIGEST_LENGTH]; 
         SHA1 sha1;
         sha1.update(bytes.data(), bytes.size());
-        hash = sha1.final();
+        std::string hash = sha1.final();
         oss << announce_url
             << "?info_hash=" << curl_easy_escape(curl, reinterpret_cast<char*>(hash), SHA_DIGEST_LENGTH)
             << "&peer_id="   << curl_easy_escape(curl, peer_id.c_str(), peer_id.length())
