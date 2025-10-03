@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
           cerr << "curl_easy_init() failed" << endl;
           return -1;
         }
-        std::string info_value = encode_bencode_value(decoded_value["info"]);
+        std::string info_value = bencode_json(decoded_value["info"]);
         std::vector<uint8_t> bytes(info_value.begin(), info_value.end());
         std::string announce_url = decoded_value["announce"].get<string>();
         std::tring peer_id = "abcdefghijklmnoptrst";
