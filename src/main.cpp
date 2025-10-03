@@ -5,13 +5,13 @@
 #include <cstdlib>
 #include <fstream>
 // #include "httplib.h"
-// #include "sha1.h"
+#include "sha1.h"
 #include "recursion_decode.h"
 #include "bencode_json.h"
 #include "lib/nlohmann/json.hpp"
 #include <iomanip>
 #include <curl/curl.h>
-#include <openssl/sha.h>
+// #include <openssl/sha.h>
 
 using json = nlohmann::json;
 
@@ -101,11 +101,11 @@ int main(int argc, char* argv[]) {
           cerr << "curl_easy_init() failed" << endl;
           return -1;
         }
-        std::string info_value = encode_bencode_value(decoded_value.at("info"));
+        std::string info_value = encode_bencode_value(decoded_value["info"]);
         std::vector<uint8_t> bytes(info_value.begin(), info_value.end());
-        std::string announce_url = decoded_value.at("announce").get<string>();
+        std::string announce_url = decoded_value["announce"].get<string>();
         std::tring peer_id = "abcdefghijklmnoptrst";
-        int64_t length = decoded_value.at("info").at("length").get<int64_t>();
+        int64_t length = decoded_value["info"]["length"].get<int64_t>();
         std::ostringstream oss;
         unsigned char hash[SHA_DIGEST_LENGTH]; 
         SHA1(reinterpret_cast<const unsigned char*>(bytes.data()),
