@@ -4,12 +4,18 @@
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
+#include <curl/curl.h>
 #include "sha1.h"
 #include "recursion_decode.h"
 #include "bencode_json.h"
 #include "lib/nlohmann/json.hpp"
 
 using json = nlohmann::json;
+
+size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
 
 int main(int argc, char* argv[]) {
     std::cout << std::unitbuf;
@@ -73,23 +79,59 @@ int main(int argc, char* argv[]) {
             std::cerr << "Usage: " << argv[0] << " peers <compact_peer_list>" << std::endl;
             return 1;
         }
-        std::string compact_peers = argv[2];
-        if (compact_peers.size() % 6 != 0) {
-            std::cerr << "Invalid compact peer list length" << std::endl;
+        std::string file_name = argv[2];
+        std::ifstream inFile(file_name, std::ios::in | std::ios::binary);
+        if (!inFile) {
+            std::cerr << "Could not open the file: " << file_name << std::endl;
             return 1;
         }
-        for (size_t i = 0; i < compact_peers.size(); i += 6) {
-            uint8_t ip1 = static_cast<uint8_t>(compact_peers[i]);
-            uint8_t ip2 = static_cast<uint8_t>(compact_peers[i + 1]);
-            uint8_t ip3 = static_cast<uint8_t>(compact_peers[i + 2]);
-            uint8_t ip4 = static_cast<uint8_t>(compact_peers[i + 3]);
-            uint16_t port = (static_cast<uint8_t>(compact_peers[i + 4]) << 8) | static_cast<uint8_t>(compact_peers[i + 5]);
-            std::cout << static_cast<int>(ip1) << "." << static_cast<int>(ip2) << "." 
-                      << static_cast<int>(ip3) << "." << static_cast<int>(ip4) 
-                      << ":" << port << std::endl;
+        std::string encoded_value((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
+        inFile.close();
+        size_t idx = 0;
+        json decoded_value= recursion_decode(encoded_value, idx);
+        std::string announce_url = decoded_value["announce"];
+        CURL *curl;
+        CURLcode res;
+        std::string readBuffer; // To store the response
+
+        // Initialize libcurl
+        curl_global_init(CURL_GLOBAL_DEFAULT);
+
+        // Get a curl handle
+        curl = curl_easy_init();
+        if (curl) {
+            announce_url+= "?info_hash=";
+            announce_url+= decoded_value["info_hash"];
+            announce_url+= "&peer_id=-PC0001-123456789012";
+            announce_url+= "&port=6881&uploaded=0&downloaded=0&left=";
+            announce_url+= std::to_string(decoded_value["info"]["length"].get<int>());
+            announce_url+= "&compact=1&event=started";
+            curl_easy_setopt(curl, CURLOPT_URL, announce_url);
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+            res = curl_easy_perform(curl);
+            if (res != CURLE_OK) {
+                std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+            } else {
+                size_t idx = 0;
+                json response = recursion_decode(readBuffer, idx);
+                std::string peers_compact = response["peers"];
+                std::vector<uint8_t> peers_bytes(peers_compact.begin(), peers_compact.end());
+                std::cout << "Peers:" << "\n";
+                for (size_t i = 0; i < peers_bytes.size(); i += 6) {
+                    if (i + 5 >= peers_bytes.size()) break; // Prevent out-of-bounds access
+                    std::cout << (int)peers_bytes[i] << "."
+                              << (int)peers_bytes[i + 1] << "."
+                              << (int)peers_bytes[i + 2] << "."
+                              << (int)peers_bytes[i + 3] << ":"
+                              << ((peers_bytes[i + 4] << 8) | peers_bytes[i + 5])
+                              << "\n";
+                }
+            }
+            curl_easy_cleanup(curl);
         }
-        
-        
+        curl_global_cleanup();
+
     }else {
         std::cerr << "unknown command: " << command << std::endl;
         return 1;
