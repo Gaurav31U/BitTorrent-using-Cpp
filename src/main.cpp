@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Length: " << decoded_value["info"]["length"] << std::endl;
         std::cout << "Info Hash: " << binary_hash << std::endl;
         std::cout << "Piece Length: " << decoded_value["info"]["piece length"] << std::endl;
-        std::cout << "Piece Hashes: " << decoded_value["info"]["piece hashes"] << std::endl;
+        std::cout << "Piece Hashes: " << decoded_value["info"]["pieces"] << std::endl;
     }else {
         std::cerr << "unknown command: " << command << std::endl;
         return 1;
