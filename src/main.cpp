@@ -52,14 +52,20 @@ int main(int argc, char* argv[]) {
         std::string info_bencoded = bencode_json(info_obj);
         sha1.update(info_bencoded);
         std::string binary_hash = sha1.final();
-
+        std::vector<std::string> pieces;
+        for (size_t i = 0; i < info_obj["pieces"].get<std::string>().size(); i += 20) {
+            pieces.push_back(info_obj["pieces"].get<std::string>().substr(i, 20));
+        }
 
         std::string announce_url = decoded_value["announce"];
         std::cout << "Tracker URL: " << announce_url << std::endl;
         std::cout << "Length: " << decoded_value["info"]["length"] << std::endl;
         std::cout << "Info Hash: " << binary_hash << std::endl;
         std::cout << "Piece Length: " << decoded_value["info"]["piece length"] << std::endl;
-        std::cout << "Piece Hashes: " << decoded_value["info"]["pieces"] << std::endl;
+        std::cout << "Piece Hashes: " <<  std::endl;
+        for (const auto& piece : pieces) {
+            std::cout << piece << std::endl;
+        }
     }else {
         std::cerr << "unknown command: " << command << std::endl;
         return 1;
