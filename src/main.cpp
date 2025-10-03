@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
         }
         std::string info_raw = encoded_value.substr(info_start, info_len);
         SHA1 sha1;
-        sha1.update(info_raw.data(), info_raw.size());
+        sha1.update(reinterpret_cast<const uint8_t*>(info_raw.data()), info_raw.size());
         std::string binary_hash = sha1.final();
 
         std::string announce_url = decoded_value["announce"];
@@ -165,7 +165,7 @@ int main(int argc, char* argv[]) {
         }
         std::string info_raw = encoded_value.substr(info_start, info_len);
         SHA1 sha1;
-        sha1.update(info_raw.data(), info_raw.size());
+        sha1.update(reinterpret_cast<const uint8_t*>(info_raw.data()), info_raw.size());
         std::string hash = sha1.final();
         std::string info_value = info_raw; // use original bytes for peers branch too
 
