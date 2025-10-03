@@ -5,13 +5,13 @@
 #include <cstdlib>
 #include <fstream>
 // #include "httplib.h"
-// #include "sha1.h"
+#include "sha1.h"
 #include "recursion_decode.h"
 #include "bencode_json.h"
 #include "lib/nlohmann/json.hpp"
 #include <iomanip>
 #include <curl/curl.h>
-#include <openssl/sha.h>
+// #include <openssl/sha.h>
 
 using json = nlohmann::json;
 
@@ -110,9 +110,9 @@ int main(int argc, char* argv[]) {
         int64_t length = decoded_value["info"]["length"].get<int64_t>();
         std::ostringstream oss;
         unsigned char hash[SHA_DIGEST_LENGTH]; 
-        SHA1(reinterpret_cast<const unsigned char*>(bytes.data()),
-             bytes.size(),
-             hash);
+        SHA1 sha1;
+        sha1.update(bytes.data(), bytes.size());
+        hash = sha1.final();
         oss << announce_url
             << "?info_hash=" << curl_easy_escape(curl, reinterpret_cast<char*>(hash), SHA_DIGEST_LENGTH)
             << "&peer_id="   << curl_easy_escape(curl, peer_id.c_str(), peer_id.length())
