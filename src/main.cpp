@@ -105,8 +105,9 @@ int main(int argc, char* argv[]) {
         params.emplace("left", std::to_string(decoded_value["info"]["length"].get<int>()));
         params.emplace("compact", "1");
         
+        std::string path = "/get";
         // Make the GET request with the parameters
-        auto res = cli.Get("/posts", params);
+        auto res = cli.Get(path, params, httplib::Headers());
 
         // Check for success
         if (res && res->status == 200) {
