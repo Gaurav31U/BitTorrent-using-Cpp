@@ -15,6 +15,8 @@
 
 using json = nlohmann::json;
 
+unsigned int SHA_DIGEST_LENGTH = 20;
+
 size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
     std::string *response = reinterpret_cast<std::string*>(userdata);
     response->append(ptr, size * nmemb);
@@ -126,7 +128,7 @@ int main(int argc, char* argv[]) {
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
         result = curl_easy_perform(curl);
         if(result != CURLE_OK) {
-          cerr << "curl_easy_perform() failed" << endl;
+          std::cerr << "curl_easy_perform() failed" << std::endl;
           return -1;
         }
         size_t begin = 0;
