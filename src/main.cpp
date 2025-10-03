@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
             uint8_t ip3 = static_cast<uint8_t>(compact_peers[i + 2]);
             uint8_t ip4 = static_cast<uint8_t>(compact_peers[i + 3]);
             uint16_t port = (static_cast<uint8_t>(compact_peers[i + 4]) << 8) | static_cast<uint8_t>(compact_peers[i + 5]);
-            std::cout << "Peer: " << static_cast<int>(ip1) << "." << static_cast<int>(ip2) << "." 
+            std::cout << static_cast<int>(ip1) << "." << static_cast<int>(ip2) << "." 
                       << static_cast<int>(ip3) << "." << static_cast<int>(ip4) 
                       << ":" << port << std::endl;
         }
