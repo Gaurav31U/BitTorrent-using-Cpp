@@ -52,27 +52,22 @@ int main(int argc, char* argv[]) {
         std::string info_bencoded = bencode_json(info_obj);
         sha1.update(info_bencoded);
         std::string binary_hash = sha1.final();
-        std::vector<std::string> pieces;
-        for (size_t i = 0; i < info_obj["pieces"].get<std::string>().size(); i += 20) {
-            std::string piece = info_obj["pieces"].get<std::string>().substr(i, 20);
-            // hexlify the piece
-            std::stringstream ss;
-            for (unsigned char piece_char : piece) {
-                ss << std::hex << std::setw(2) << std::setfill('0')
-                   << static_cast<int>(piece_char);
-            }
-            pieces.push_back(piece);
-        }
 
         std::string announce_url = decoded_value["announce"];
         std::cout << "Tracker URL: " << announce_url << std::endl;
         std::cout << "Length: " << decoded_value["info"]["length"] << std::endl;
         std::cout << "Info Hash: " << binary_hash << std::endl;
         std::cout << "Piece Length: " << decoded_value["info"]["piece length"] << std::endl;
-        std::cout << "Piece Hashes: " <<  std::endl;
-        for (const auto& piece : pieces) {
-            std::cout << piece << std::endl;
+        std::cout << "Piece Hashes:" << "\n";
+        std::string hashes  = decoded_value.at("info").at("pieces").get<std::string>();
+        std::vector<uint8_t> pieces(hashes.begin(), hashes.end());
+        for (size_t i = 0; i < pieces.size(); ++i) {
+            if(i % 20 == 0 && i) {
+                std::cout << "\n";
+            }
+            printf("%02x", pieces[i]);
         }
+        std::cout << "\n";
     }else {
         std::cerr << "unknown command: " << command << std::endl;
         return 1;
