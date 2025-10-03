@@ -89,11 +89,11 @@ int main(int argc, char* argv[]) {
         inFile.close();
         size_t idx = 0;
         json decoded_value= recursion_decode(encoded_value, idx);
-        std::string announce_url = decoded_value["announce"];
+        std::string announce_url = decoded_value["announce"].get<std::string>();
         
 
 
-        httplib::Client cli(announce_url.c_str());
+        httplib::Client cli(announce_url);
     
         // Use the Get() method with a path and a Params object
         httplib::Params params;
@@ -110,27 +110,27 @@ int main(int argc, char* argv[]) {
         auto res = cli.Get(path, params, httplib::Headers());
 
         // Check for success
-        // if (res && res->status == 200) {
-        //     std::string readBuffer = res->body;
-        //     size_t idx = 0;
-        //     json response = recursion_decode(readBuffer, idx);
-        //     std::string peers_compact = response["peers"];
-        //     std::vector<uint8_t> peers_bytes(peers_compact.begin(), peers_compact.end());
-        //     for (size_t i = 0; i < peers_bytes.size(); i += 6) {
-        //         if (i + 5 >= peers_bytes.size()) break; // Prevent out-of-bounds access
-        //         std::cout << (int)peers_bytes[i] << "."
-        //                   << (int)peers_bytes[i + 1] << "."
-        //                   << (int)peers_bytes[i + 2] << "."
-        //                   << (int)peers_bytes[i + 3] << ":"
-        //                   << ((peers_bytes[i + 4] << 8) | peers_bytes[i + 5])
-        //                   << "\n";
-        //     }
-        // } else {
-        //     std::cerr << "HTTP GET Request Failed!" << std::endl;
-        //     if (res) {
-        //         std::cerr << "Status code: " << res->status << std::endl;
-        //     }
-        // }
+        if (res && res->status == 200) {
+            std::string readBuffer = res->body;
+            size_t idx = 0;
+            json response = recursion_decode(readBuffer, idx);
+            std::string peers_compact = response["peers"];
+            std::vector<uint8_t> peers_bytes(peers_compact.begin(), peers_compact.end());
+            for (size_t i = 0; i < peers_bytes.size(); i += 6) {
+                if (i + 5 >= peers_bytes.size()) break; // Prevent out-of-bounds access
+                std::cout << (int)peers_bytes[i] << "."
+                          << (int)peers_bytes[i + 1] << "."
+                          << (int)peers_bytes[i + 2] << "."
+                          << (int)peers_bytes[i + 3] << ":"
+                          << ((peers_bytes[i + 4] << 8) | peers_bytes[i + 5])
+                          << "\n";
+            }
+        } else {
+            std::cerr << "HTTP GET Request Failed!" << std::endl;
+            if (res) {
+                std::cerr << "Status code: " << res->status << std::endl;
+            }
+        }
 
         
 
