@@ -68,6 +68,28 @@ int main(int argc, char* argv[]) {
             printf("%02x", pieces[i]);
         }
         std::cout << "\n";
+    }else if(command == "peers"){
+        if(argc < 3) {
+            std::cerr << "Usage: " << argv[0] << " peers <compact_peer_list>" << std::endl;
+            return 1;
+        }
+        std::string compact_peers = argv[2];
+        if (compact_peers.size() % 6 != 0) {
+            std::cerr << "Invalid compact peer list length" << std::endl;
+            return 1;
+        }
+        for (size_t i = 0; i < compact_peers.size(); i += 6) {
+            uint8_t ip1 = static_cast<uint8_t>(compact_peers[i]);
+            uint8_t ip2 = static_cast<uint8_t>(compact_peers[i + 1]);
+            uint8_t ip3 = static_cast<uint8_t>(compact_peers[i + 2]);
+            uint8_t ip4 = static_cast<uint8_t>(compact_peers[i + 3]);
+            uint16_t port = (static_cast<uint8_t>(compact_peers[i + 4]) << 8) | static_cast<uint8_t>(compact_peers[i + 5]);
+            std::cout << "Peer: " << static_cast<int>(ip1) << "." << static_cast<int>(ip2) << "." 
+                      << static_cast<int>(ip3) << "." << static_cast<int>(ip4) 
+                      << ":" << port << std::endl;
+        }
+        
+        
     }else {
         std::cerr << "unknown command: " << command << std::endl;
         return 1;
