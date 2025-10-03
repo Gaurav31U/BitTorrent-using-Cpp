@@ -4,7 +4,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
-#include <curl/curl.h>
+#include "httplib.h"
 #include "sha1.h"
 #include "recursion_decode.h"
 #include "bencode_json.h"
@@ -90,47 +90,49 @@ int main(int argc, char* argv[]) {
         size_t idx = 0;
         json decoded_value= recursion_decode(encoded_value, idx);
         std::string announce_url = decoded_value["announce"];
-        CURL *curl;
-        CURLcode res;
-        std::string readBuffer; // To store the response
+        
 
-        // Initialize libcurl
-        curl_global_init(CURL_GLOBAL_DEFAULT);
 
-        // Get a curl handle
-        curl = curl_easy_init();
-        if (curl) {
-            announce_url+= "?info_hash=";
-            announce_url+= decoded_value["info_hash"];
-            announce_url+= "&peer_id=-PC0001-123456789012";
-            announce_url+= "&port=6881&uploaded=0&downloaded=0&left=";
-            announce_url+= std::to_string(decoded_value["info"]["length"].get<int>());
-            announce_url+= "&compact=1&event=started";
-            curl_easy_setopt(curl, CURLOPT_URL, announce_url);
-            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-            res = curl_easy_perform(curl);
-            if (res != CURLE_OK) {
-                std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
-            } else {
-                size_t idx = 0;
-                json response = recursion_decode(readBuffer, idx);
-                std::string peers_compact = response["peers"];
-                std::vector<uint8_t> peers_bytes(peers_compact.begin(), peers_compact.end());
-                std::cout << "Peers:" << "\n";
-                for (size_t i = 0; i < peers_bytes.size(); i += 6) {
-                    if (i + 5 >= peers_bytes.size()) break; // Prevent out-of-bounds access
-                    std::cout << (int)peers_bytes[i] << "."
-                              << (int)peers_bytes[i + 1] << "."
-                              << (int)peers_bytes[i + 2] << "."
-                              << (int)peers_bytes[i + 3] << ":"
-                              << ((peers_bytes[i + 4] << 8) | peers_bytes[i + 5])
-                              << "\n";
-                }
+        httplib::Client cli(announce_url.c_str());
+    
+        // Use the Get() method with a path and a Params object
+        httplib::Params params;
+        params.emplace("info_hash", decoded_value["info_hash"]);
+        params.emplace("peer_id", "-PC0001-123456789012");
+        params.emplace("port", "6881");
+        params.emplace("uploaded", "0");
+        params.emplace("downloaded", "0");
+        params.emplace("left", std::to_string(decoded_value["info"]["length"].get<int>()));
+        params.emplace("compact", "1");
+        
+        // Make the GET request with the parameters
+        auto res = cli.Get("/posts", params);
+
+        // Check for success
+        if (res && res->status == 200) {
+            std::string readBuffer = res->body;
+            size_t idx = 0;
+            json response = recursion_decode(readBuffer, idx);
+            std::string peers_compact = response["peers"];
+            std::vector<uint8_t> peers_bytes(peers_compact.begin(), peers_compact.end());
+            std::cout << "Peers:" << "\n";
+            for (size_t i = 0; i < peers_bytes.size(); i += 6) {
+                if (i + 5 >= peers_bytes.size()) break; // Prevent out-of-bounds access
+                std::cout << (int)peers_bytes[i] << "."
+                          << (int)peers_bytes[i + 1] << "."
+                          << (int)peers_bytes[i + 2] << "."
+                          << (int)peers_bytes[i + 3] << ":"
+                          << ((peers_bytes[i + 4] << 8) | peers_bytes[i + 5])
+                          << "\n";
             }
-            curl_easy_cleanup(curl);
+        } else {
+            std::cerr << "HTTP GET Request Failed!" << std::endl;
+            if (res) {
+                std::cerr << "Status code: " << res->status << std::endl;
+            }
         }
-        curl_global_cleanup();
+
+        
 
     }else {
         std::cerr << "unknown command: " << command << std::endl;
