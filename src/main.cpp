@@ -11,11 +11,48 @@
 #include "lib/nlohmann/json.hpp"
 #include <iomanip>
 #include <curl/curl.h>
-// #include <openssl/sha.h>
 
 using json = nlohmann::json;
 
 unsigned int SHA_DIGEST_LENGTH = 20;
+
+// helper: return length in bytes of a bencoded element starting at pos, 0 on error
+static size_t bencode_element_length(const std::string &s, size_t pos) {
+    if (pos >= s.size()) return 0;
+    char c = s[pos];
+    // integer: i<digits>e
+    if (c == 'i') {
+        size_t e = s.find('e', pos + 1);
+        if (e == std::string::npos) return 0;
+        return e - pos + 1;
+    }
+    // list or dict: l...e or d...e
+    if (c == 'l' || c == 'd') {
+        size_t i = pos + 1;
+        while (i < s.size() && s[i] != 'e') {
+            size_t child = bencode_element_length(s, i);
+            if (child == 0) return 0;
+            i += child;
+        }
+        if (i >= s.size() || s[i] != 'e') return 0;
+        return i - pos + 1;
+    }
+    // string: <len>:<data>
+    if (std::isdigit(static_cast<unsigned char>(c))) {
+        size_t colon = s.find(':', pos);
+        if (colon == std::string::npos) return 0;
+        size_t num = 0;
+        try {
+            num = std::stoul(s.substr(pos, colon - pos));
+        } catch (...) {
+            return 0;
+        }
+        size_t start_data = colon + 1;
+        if (start_data + num > s.size()) return 0;
+        return (colon - pos) + 1 + num;
+    }
+    return 0;
+}
 
 size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
     std::string *response = reinterpret_cast<std::string*>(userdata);
@@ -59,10 +96,21 @@ int main(int argc, char* argv[]) {
         size_t idx = 0;
         json decoded_value= recursion_decode(encoded_value, idx);
         
+        // compute SHA-1 over the original bencoded "info" dictionary bytes
+        size_t info_key_pos = encoded_value.find("4:info");
+        if (info_key_pos == std::string::npos) {
+            std::cerr << "failed to find info key in torrent data" << std::endl;
+            return 1;
+        }
+        size_t info_start = info_key_pos + 6; // skip "4:info"
+        size_t info_len = bencode_element_length(encoded_value, info_start);
+        if (info_len == 0) {
+            std::cerr << "failed to locate bencoded info dictionary" << std::endl;
+            return 1;
+        }
+        std::string info_raw = encoded_value.substr(info_start, info_len);
         SHA1 sha1;
-        json info_obj = decoded_value["info"];
-        std::string info_bencoded = bencode_json(info_obj);
-        sha1.update(info_bencoded);
+        sha1.update(info_raw.data(), info_raw.size());
         std::string binary_hash = sha1.final();
 
         std::string announce_url = decoded_value["announce"];
@@ -103,16 +151,28 @@ int main(int argc, char* argv[]) {
           std::cerr << "curl_easy_init() failed" << std::endl;
           return -1;
         }
-        std::string info_value = bencode_json(decoded_value["info"]);
-        std::vector<uint8_t> bytes(info_value.begin(), info_value.end());
+        // compute SHA-1 over the original bencoded "info" dictionary bytes
+        size_t info_key_pos = encoded_value.find("4:info");
+        if (info_key_pos == std::string::npos) {
+            std::cerr << "failed to find info key in torrent data" << std::endl;
+            return -1;
+        }
+        size_t info_start = info_key_pos + 6; // skip "4:info"
+        size_t info_len = bencode_element_length(encoded_value, info_start);
+        if (info_len == 0) {
+            std::cerr << "failed to locate bencoded info dictionary" << std::endl;
+            return -1;
+        }
+        std::string info_raw = encoded_value.substr(info_start, info_len);
+        SHA1 sha1;
+        sha1.update(info_raw.data(), info_raw.size());
+        std::string hash = sha1.final();
+        std::string info_value = info_raw; // use original bytes for peers branch too
+
         std::string announce_url = decoded_value["announce"].get<std::string>();
         std::string peer_id = "abcdefghijklmnoptrst";
         int64_t length = decoded_value["info"]["length"].get<int64_t>();
         std::ostringstream oss;
-        SHA1 sha1;
-        // sha1.update(info_value);
-        sha1.update(bytes.data(), bytes.size());
-        std::string hash = sha1.final();
         char *esc_info = curl_easy_escape(curl, reinterpret_cast<const char*>(hash.data()), static_cast<int>(SHA_DIGEST_LENGTH));
         char *esc_peer = curl_easy_escape(curl, peer_id.c_str(), static_cast<int>(peer_id.length()));
         oss << announce_url
