@@ -91,7 +91,11 @@ int main(int argc, char* argv[]) {
         json decoded_value= recursion_decode(encoded_value, idx);
         std::string announce_url = decoded_value["announce"].get<std::string>();
         
-
+        json info_obj = decoded_value["info"];
+        std::string info_bencoded = bencode_json(info_obj);
+        SHA1 sha1;
+        sha1.update(info_bencoded);
+        std::string info_hash = sha1.final();
 
         httplib::Client cli(announce_url);
     
@@ -109,21 +113,34 @@ int main(int argc, char* argv[]) {
         // Make the GET request with the parameters
         auto res = cli.Get(path, params, httplib::Headers());
 
-        // Check for success
-        if (res && res->status == 200) {
-            std::string readBuffer = res->body;
-            size_t idx = 0;
-            json response = recursion_decode(readBuffer, idx);
-            std::string peers_compact = response["peers"];
+        auto print_compact_peers = [](const std::string &peers_compact) {
             std::vector<uint8_t> peers_bytes(peers_compact.begin(), peers_compact.end());
-            for (size_t i = 0; i < peers_bytes.size(); i += 6) {
-                if (i + 5 >= peers_bytes.size()) break; // Prevent out-of-bounds access
+            for (size_t i = 0; i + 5 < peers_bytes.size(); i += 6) {
                 std::cout << (int)peers_bytes[i] << "."
                           << (int)peers_bytes[i + 1] << "."
                           << (int)peers_bytes[i + 2] << "."
                           << (int)peers_bytes[i + 3] << ":"
                           << ((peers_bytes[i + 4] << 8) | peers_bytes[i + 5])
                           << "\n";
+            }
+        };
+        // Check for success
+        if (res && res->status == 200) {
+            std::string readBuffer = res->body;
+            size_t ridx = 0;
+            json response;
+            try {
+                response = recursion_decode(readBuffer, ridx);
+            } catch (...) {
+                std::cerr << "Failed to decode tracker response" << std::endl;
+                return 1;
+            }
+
+            if (response.is_object() && response.contains("peers") && response["peers"].is_string()) {
+                std::string peers_compact = response["peers"].get<std::string>();
+                print_compact_peers(peers_compact);
+            } else {
+                std::cerr << "Tracker response has no compact peers string" << std::endl;
             }
         } else {
             std::cerr << "HTTP GET Request Failed!" << std::endl;
