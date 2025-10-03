@@ -54,7 +54,14 @@ int main(int argc, char* argv[]) {
         std::string binary_hash = sha1.final();
         std::vector<std::string> pieces;
         for (size_t i = 0; i < info_obj["pieces"].get<std::string>().size(); i += 20) {
-            pieces.push_back(info_obj["pieces"].get<std::string>().substr(i, 20));
+            std::string piece = info_obj["pieces"].get<std::string>().substr(i, 20);
+            // hexlify the piece
+            std::stringstream ss;
+            for (unsigned char piece_char : piece) {
+                ss << std::hex << std::setw(2) << std::setfill('0')
+                   << static_cast<int>(piece_char);
+            }
+            pieces.push_back(piece);
         }
 
         std::string announce_url = decoded_value["announce"];
