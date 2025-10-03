@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
         sha1.update(bytes.data(), bytes.size());
         std::string hash = sha1.final();
         oss << announce_url
-            << "?info_hash=" << hash
+            << "?info_hash=" << curl_easy_escape(curl, reinterpret_cast<char*>(hash), SHA_DIGEST_LENGTH)
             << "&peer_id="   << curl_easy_escape(curl, peer_id.c_str(), peer_id.length())
             << "&port="      << 6881
             << "&uploaded=" << 0
