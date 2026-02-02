@@ -96,9 +96,9 @@ Useful for debugging raw tracker responses.
 
 ## 📚 Technical Details
 
-![class](./class.pdf)
+![class](./class.svg)
 
-![component](./component.pdf)
+![component](./component.svg)
 
 ### Dependencies
 *   **Arpa/Inet**: For low-level BSD socket connections.
