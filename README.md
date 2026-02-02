@@ -96,6 +96,10 @@ Useful for debugging raw tracker responses.
 
 ## 📚 Technical Details
 
+![class](./class.pdf)
+
+![component](./component.pdf)
+
 ### Dependencies
 *   **Arpa/Inet**: For low-level BSD socket connections.
 *   **OpenSSL**: Used to generate the Info Hash and verify piece integrity.
